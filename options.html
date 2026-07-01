@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jira Quick Worklog — Ayarlar</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="head">
+        <img src="icons/icon48.png" alt="" width="40" height="40" />
+        <div>
+          <h1>Jira Quick Worklog</h1>
+          <p class="sub">Bağlantı ayarları — bir defa gir, sistem hatırlar.</p>
+        </div>
+      </header>
+
+      <form id="form" class="card">
+        <label class="field">
+          <span class="label">Jira adresi</span>
+          <input id="baseUrl" type="url" placeholder="https://sirket.atlassian.net" autocomplete="off" required />
+          <small>Tarayıcıda Jira'yı açtığında adres çubuğunda yazan adres.</small>
+        </label>
+
+        <label class="field">
+          <span class="label">E-posta</span>
+          <input id="email" type="email" placeholder="ad.soyad@sirket.com" autocomplete="off" required />
+        </label>
+
+        <label class="field">
+          <span class="label">API Token</span>
+          <div class="token-row">
+            <input id="token" type="password" placeholder="ATATT..." autocomplete="off" required />
+            <button type="button" id="toggleToken" class="ghost" title="Göster/Gizle">👁</button>
+          </div>
+          <small>
+            <a id="tokenLink" href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener">
+              Token oluştur ↗
+            </a>
+            — token yalnızca bu cihazda saklanır (chrome.storage.local).
+          </small>
+        </label>
+
+        <div class="grid2">
+          <label class="field">
+            <span class="label">Günlük hedef (saat)</span>
+            <input id="dailyTargetHours" type="number" min="1" max="24" step="0.5" value="8" />
+          </label>
+          <label class="field">
+            <span class="label">Başlangıç saati</span>
+            <input id="startHour" type="number" min="0" max="23" step="1" value="9" />
+            <small>Worklog'lar bu saatten itibaren sıralanır.</small>
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="label">İş listesi sorgusu (JQL)</span>
+          <input id="jql" type="text" placeholder="assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC" />
+          <small>Popup'ta hangi işlerin görüneceğini belirler. Boş bırakırsan varsayılan kullanılır.</small>
+        </label>
+
+        <div class="actions">
+          <button type="button" id="test" class="secondary">Bağlantıyı Test Et</button>
+          <button type="submit" id="save" class="primary">Kaydet</button>
+        </div>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </form>
+
+      <p class="foot">Kaydettikten sonra araç çubuğundaki saat ikonuna tıklayıp worklog girmeye başlayabilirsin.</p>
+    </div>
+    <script type="module" src="dist/options/main.js"></script>
+  </body>
+</html>
