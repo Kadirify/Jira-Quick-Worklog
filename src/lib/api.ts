@@ -28,6 +28,24 @@ export class JiraApiError extends Error {
   }
 }
 
+/**
+ * Tarayicida ACIK olan Jira oturumundaki kullaniciyi (cerezle) tespit eder — token gerekmez.
+ * Yalnizca "otomatik gelen kullaniciyi" algilayip hesap eklerken on-doldurmak icin.
+ */
+export async function detectCurrentJiraUser(baseUrl: string): Promise<JiraUser> {
+  const url = `${baseUrl.replace(/\/+$/, "")}/rest/api/3/myself`;
+  const res = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+  if (!res.ok) {
+    throw new JiraApiError(
+      res.status === 401
+        ? "Tarayıcıda açık bir Jira oturumu bulunamadı (giriş yapılmamış)."
+        : `${res.status} ${res.statusText}`,
+      res.status,
+    );
+  }
+  return res.json() as Promise<JiraUser>;
+}
+
 interface SearchResponse {
   issues?: JiraIssue[];
 }
@@ -57,6 +75,8 @@ export class JiraClient {
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
+      // Tarayicidaki Jira oturum cerezi araya girmesin — kimlik YALNIZCA token'dan gelsin.
+      credentials: "omit",
       headers: {
         Authorization: this.authHeader,
         Accept: "application/json",
