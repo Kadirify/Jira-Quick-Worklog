@@ -1,0 +1,17 @@
+{
+  "name": "jira-quick-worklog",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Jira worklog girişlerini tek tıkla yapan Chrome eklentisi",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "typescript": "^5.9.3"
+  }
+}
