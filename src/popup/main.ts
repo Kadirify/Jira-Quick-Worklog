@@ -1,8 +1,8 @@
 // Kompozisyon koku: store ve render'i birbirine baglar, DOM olaylarini yonetir.
 // Burasi "kirli" ucu tutar; is mantigi store'da, goruntu render'da.
 
-import { JiraClient, JiraApiError } from "../lib/api.js";
-import { loadSettings, settingsComplete } from "../lib/storage.js";
+import { JiraApiError } from "../lib/api.js";
+import { loadConfig, configComplete } from "../lib/storage.js";
 import { todayStr } from "../lib/format.js";
 import { Store } from "./store.js";
 import { renderApp, toast, showError, type RenderHandlers } from "./render.js";
@@ -22,14 +22,14 @@ const errMsg = (e: unknown): string =>
   e instanceof JiraApiError ? e.message : e instanceof Error ? e.message : String(e);
 
 async function main(): Promise<void> {
-  const settings = await loadSettings();
-  if (!settingsComplete(settings)) {
+  const config = await loadConfig();
+  if (!configComplete(config)) {
     showScreen("setup");
     $("goOptions").addEventListener("click", () => chrome.runtime.openOptionsPage());
     return;
   }
 
-  const store = new Store(new JiraClient(settings), settings, todayStr());
+  const store = new Store(config, todayStr());
 
   const handlers: RenderHandlers = {
     onLog: (key, seconds, comment) => {
@@ -75,6 +75,10 @@ function bindChrome(store: Store): void {
   };
 
   $("settings").addEventListener("click", () => chrome.runtime.openOptionsPage());
+
+  const acct = $("accountSelect") as HTMLSelectElement;
+  acct.addEventListener("change", () => void withReload(() => store.switchAccount(acct.value)));
+
   $("prevDay").addEventListener("click", () => void withReload(() => store.changeDay(-1)));
   $("nextDay").addEventListener("click", () => void withReload(() => store.changeDay(1)));
   $("dateLabel").addEventListener("click", () => void withReload(() => store.goToDate(todayStr())));

@@ -47,12 +47,22 @@ const $ = (id: string): HTMLElement => {
 
 // ---- Ana render ----
 export function renderApp(state: PopupState, handlers: RenderHandlers): void {
-  $("who").textContent = state.me?.displayName ?? "";
-  $("who").title = state.me?.emailAddress ?? "";
+  renderAccounts(state);
   $("dateLabel").textContent = formatDateLabel(state.date);
   renderProgress(state);
   renderIssues(state, handlers);
   renderEntries(state, handlers);
+}
+
+function renderAccounts(state: PopupState): void {
+  const sel = $("accountSelect") as HTMLSelectElement;
+  sel.innerHTML = "";
+  for (const a of state.accounts) sel.append(el("option", { value: a.id, text: a.label }));
+  sel.value = state.activeAccountId;
+  const who = state.me
+    ? `${state.me.displayName}${state.me.emailAddress ? " · " + state.me.emailAddress : ""}`
+    : "";
+  sel.title = who ? `Aktif: ${who}` : "Aktif hesap";
 }
 
 function renderProgress(state: PopupState): void {

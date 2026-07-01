@@ -1,5 +1,24 @@
 // Jira alan modelleri ve uygulama ayarlari (tip tanimlari).
 
+/** Tek bir Jira hesabi (kimlik). */
+export interface Account {
+  id: string;
+  label: string;
+  email: string;
+  token: string;
+}
+
+/** Tum yapilandirma: birden cok hesap + aktif hesap + genel ayarlar. */
+export interface Config {
+  baseUrl: string;
+  accounts: Account[];
+  activeAccountId: string;
+  dailyTargetHours: number;
+  startHour: number;
+  jql: string;
+}
+
+/** JiraClient'in kullandigi, aktif hesaptan cozumlenmis ayar. */
 export interface Settings {
   baseUrl: string;
   email: string;

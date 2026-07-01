@@ -2,13 +2,15 @@
 // degisiklikte abonelere haber verir. (DOM/render bilmez.)
 
 import { JiraClient } from "../lib/api.js";
-import { loadFavorites, saveFavorites } from "../lib/storage.js";
-import type { Settings, JiraUser, JiraIssue, WorklogEntry } from "../lib/types.js";
+import { loadFavorites, saveFavorites, resolveSettings, saveConfig } from "../lib/storage.js";
+import type { Config, Account, Settings, JiraUser, JiraIssue, WorklogEntry } from "../lib/types.js";
 
 export interface PopupState {
   me: JiraUser | null;
   date: string;
   settings: Settings;
+  accounts: Account[];
+  activeAccountId: string;
   favorites: string[];
   favIssues: JiraIssue[];
   assigned: JiraIssue[];
@@ -23,17 +25,22 @@ type Listener = (state: PopupState) => void;
 
 export class Store {
   readonly state: PopupState;
-  private readonly client: JiraClient;
+  private config: Config;
+  private client: JiraClient;
   private readonly listeners = new Set<Listener>();
   /** Worklog ekleme/silmeyi seri hale getiren kuyruk (yaris kosulunu onler). */
   private queue: Promise<unknown> = Promise.resolve();
 
-  constructor(client: JiraClient, settings: Settings, date: string) {
-    this.client = client;
+  constructor(config: Config, date: string) {
+    this.config = config;
+    const settings = resolveSettings(config);
+    this.client = new JiraClient(settings);
     this.state = {
       me: null,
       date,
       settings,
+      accounts: config.accounts,
+      activeAccountId: config.activeAccountId || (config.accounts[0]?.id ?? ""),
       favorites: [],
       favIssues: [],
       assigned: [],
@@ -52,7 +59,6 @@ export class Store {
     for (const fn of this.listeners) fn(this.state);
   }
 
-  /** Islemleri tek tek, sirayla calistirir; bir oncekinin sonucu islenmeden digeri baslamaz. */
   private enqueue<T>(task: () => Promise<T>): Promise<T> {
     const run = this.queue.then(task, task);
     this.queue = run.then(
@@ -88,6 +94,22 @@ export class Store {
   async init(): Promise<void> {
     this.state.me = await this.client.getMyself();
     this.state.favorites = await loadFavorites();
+    await this.reloadIssues();
+    await this.reloadDay();
+    this.notify();
+  }
+
+  /** Aktif hesabi degistir: istemciyi yeniden kur, verileri tazele. */
+  async switchAccount(accountId: string): Promise<void> {
+    if (accountId === this.state.activeAccountId) return;
+    this.config.activeAccountId = accountId;
+    await saveConfig(this.config);
+    this.state.activeAccountId = accountId;
+    this.state.settings = resolveSettings(this.config);
+    this.client = new JiraClient(this.state.settings);
+    this.state.searchResults = null;
+    this.state.summaries = {};
+    this.state.me = await this.client.getMyself();
     await this.reloadIssues();
     await this.reloadDay();
     this.notify();
@@ -144,7 +166,6 @@ export class Store {
   /** Worklog ekler; basariliysa olusan kaydi (geri-al icin) doner. */
   logTime(issueKey: string, seconds: number, comment?: string): Promise<WorklogEntry> {
     return this.enqueue(async () => {
-      // Kuyruk sayesinde totalSec guncel; baslangic saatleri ust uste binmez.
       const startSeconds = this.state.settings.startHour * 3600 + this.state.totalSec;
       const created = await this.client.addWorklog(issueKey, {
         seconds,

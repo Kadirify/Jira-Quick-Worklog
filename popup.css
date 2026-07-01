@@ -206,3 +206,12 @@ button.primary:hover { background: var(--primary-press); }
 /* scrollbar */
 .issue-list::-webkit-scrollbar { width: 8px; }
 .issue-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+
+/* ---- Hesap secici ---- */
+.acct-select {
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text); background: var(--panel);
+  border: 1px solid var(--border-strong); border-radius: 8px;
+  padding: 4px 6px; max-width: 150px; cursor: pointer; outline: none;
+}
+.acct-select:focus { border-color: var(--primary); }
