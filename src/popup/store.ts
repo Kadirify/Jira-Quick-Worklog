@@ -3,6 +3,7 @@
 
 import { JiraClient } from "../lib/api.js";
 import { loadFavorites, saveFavorites, resolveSettings, saveConfig } from "../lib/storage.js";
+import { weekDates } from "../lib/format.js";
 import type { Config, Account, Settings, JiraUser, JiraIssue, WorklogEntry } from "../lib/types.js";
 
 export interface PopupState {
@@ -13,12 +14,16 @@ export interface PopupState {
   activeAccountId: string;
   favorites: string[];
   favIssues: JiraIssue[];
+  recent: JiraIssue[];
   assigned: JiraIssue[];
   searchResults: JiraIssue[] | null;
   todays: WorklogEntry[];
   loggedByIssue: Record<string, number>;
   totalSec: number;
   summaries: Record<string, string>;
+  /** Gosterilen haftanin gunleri (Pzt..Paz) ve gunluk toplamlar. */
+  weekDays: string[];
+  weekTotals: Record<string, number>;
 }
 
 type Listener = (state: PopupState) => void;
@@ -43,12 +48,15 @@ export class Store {
       activeAccountId: config.activeAccountId || (config.accounts[0]?.id ?? ""),
       favorites: [],
       favIssues: [],
+      recent: [],
       assigned: [],
       searchResults: null,
       todays: [],
       loggedByIssue: {},
       totalSec: 0,
       summaries: {},
+      weekDays: weekDates(date),
+      weekTotals: {},
     };
   }
 
@@ -96,6 +104,7 @@ export class Store {
     this.state.favorites = await loadFavorites();
     await this.reloadIssues();
     await this.reloadDay();
+    await this.reloadWeek(true);
     this.notify();
   }
 
@@ -112,21 +121,37 @@ export class Store {
     this.state.me = await this.client.getMyself();
     await this.reloadIssues();
     await this.reloadDay();
+    await this.reloadWeek(true);
     this.notify();
   }
 
   private async reloadIssues(): Promise<void> {
-    const [favIssues, assigned] = await Promise.all([
+    const [favIssues, recent, assigned] = await Promise.all([
       this.safeIssuesByKeys(this.state.favorites),
+      this.client.recentWorklogIssues(7, 10).catch(() => [] as JiraIssue[]),
       this.client.listIssues(this.state.settings.jql, 30),
     ]);
     this.state.favIssues = favIssues;
+    this.state.recent = recent;
     this.state.assigned = assigned;
-    this.remember([...favIssues, ...assigned]);
+    this.remember([...favIssues, ...recent, ...assigned]);
   }
 
   private async reloadDay(): Promise<void> {
     this.recomputeDay(await this.client.worklogsForDate(this.state.date));
+    // Gunun toplami haftalik grafikte de aninda dogru gorunsun.
+    this.state.weekTotals[this.state.date] = this.state.totalSec;
+  }
+
+  /** Gosterilen gunun haftasini yukler; hafta degismediyse (force degilse) dokunmaz. */
+  private async reloadWeek(force = false): Promise<void> {
+    const days = weekDates(this.state.date);
+    if (!force && days[0] === this.state.weekDays[0]) return;
+    this.state.weekDays = days;
+    this.state.weekTotals = await this.client
+      .worklogTotalsForRange(days[0]!, days[6]!)
+      .catch(() => ({} as Record<string, number>));
+    this.state.weekTotals[this.state.date] = this.state.totalSec;
   }
 
   async changeDay(deltaDays: number): Promise<void> {
@@ -135,6 +160,7 @@ export class Store {
     const p = (n: number) => String(n).padStart(2, "0");
     this.state.date = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
     await this.reloadDay();
+    await this.reloadWeek();
     this.notify();
   }
 
@@ -142,6 +168,7 @@ export class Store {
     if (dateStr === this.state.date) return;
     this.state.date = dateStr;
     await this.reloadDay();
+    await this.reloadWeek();
     this.notify();
   }
 
@@ -184,6 +211,7 @@ export class Store {
       this.state.todays.push(entry);
       this.state.loggedByIssue[issueKey] = (this.state.loggedByIssue[issueKey] ?? 0) + seconds;
       this.state.totalSec += seconds;
+      this.state.weekTotals[this.state.date] = this.state.totalSec;
       this.notify();
       return entry;
     });
@@ -198,6 +226,7 @@ export class Store {
         (this.state.loggedByIssue[entry.issueKey] ?? 0) - entry.timeSpentSeconds,
       );
       this.state.totalSec = Math.max(0, this.state.totalSec - entry.timeSpentSeconds);
+      this.state.weekTotals[this.state.date] = this.state.totalSec;
       this.notify();
     });
   }

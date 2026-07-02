@@ -1,7 +1,7 @@
 // Goruntuleme katmani. Sadece DOM uretir; state ve geri-cagrim (handler) alir.
 // API/chrome/storage bilmez — boylece store'dan tamamen ayrik.
 
-import { secToHuman, formatDateLabel, parseDuration } from "../lib/format.js";
+import { secToHuman, formatDateLabel, parseDuration, todayStr } from "../lib/format.js";
 import type { PopupState } from "./store.js";
 import type { JiraIssue, WorklogEntry } from "../lib/types.js";
 
@@ -9,6 +9,7 @@ export interface RenderHandlers {
   onLog: (issueKey: string, seconds: number, comment?: string) => void;
   onDelete: (entry: WorklogEntry) => void;
   onToggleFav: (key: string) => void;
+  onPickDate: (dateStr: string) => void;
 }
 
 const PRESETS: ReadonlyArray<{ label: string; sec: number }> = [
@@ -50,8 +51,42 @@ export function renderApp(state: PopupState, handlers: RenderHandlers): void {
   renderAccounts(state);
   $("dateLabel").textContent = formatDateLabel(state.date);
   renderProgress(state);
+  renderWeek(state, handlers);
   renderIssues(state, handlers);
   renderEntries(state, handlers);
+}
+
+const DAY_NAMES = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"] as const;
+
+/** Haftalik mini grafik: gunluk toplamlar, tiklayinca o gune gider. */
+function renderWeek(state: PopupState, handlers: RenderHandlers): void {
+  const bar = $("weekBar");
+  bar.innerHTML = "";
+  const target = state.settings.dailyTargetHours * 3600;
+  const today = todayStr();
+
+  state.weekDays.forEach((day, i) => {
+    const sec = state.weekTotals[day] ?? 0;
+    const pct = target ? Math.min(100, (sec / target) * 100) : 0;
+    const fill = el("div", { class: "wd-fill" + (sec >= target ? " full" : "") });
+    fill.style.height = pct + "%";
+
+    const cls =
+      "wd" +
+      (day === state.date ? " sel" : "") +
+      (day === today ? " today" : "") +
+      (day > today ? " future" : "");
+    bar.append(
+      el("button", {
+        class: cls,
+        title: `${DAY_NAMES[i]} · ${secToHuman(sec)}`,
+        onclick: () => handlers.onPickDate(day),
+      }, [
+        el("div", { class: "wd-track" }, [fill]),
+        el("span", { class: "wd-name", text: DAY_NAMES[i] ?? "" }),
+      ]),
+    );
+  });
 }
 
 function renderAccounts(state: PopupState): void {
@@ -83,7 +118,8 @@ function displayedIssues(state: PopupState): JiraIssue[] {
   if (state.searchResults) return state.searchResults;
   const seen = new Set<string>();
   const out: JiraIssue[] = [];
-  for (const i of [...state.favIssues, ...state.assigned]) {
+  // Oncelik: favoriler > son loglananlar > JQL listesi (tekrarlar elenir).
+  for (const i of [...state.favIssues, ...state.recent, ...state.assigned]) {
     if (seen.has(i.key)) continue;
     seen.add(i.key);
     out.push(i);
@@ -130,17 +166,25 @@ function renderIssueCard(
     }),
   ]);
 
+  const summary = issue.fields.summary;
+  // Ayara gore: aciklama penceresi ac ya da dogrudan kaydet.
+  const log = (seconds: number, label: string): void => {
+    if (state.settings.askComment) openLogDialog(key, summary, seconds, label, handlers.onLog);
+    else handlers.onLog(key, seconds);
+  };
+
   const chips = el("div", { class: "chips" });
   for (const p of PRESETS) {
-    chips.append(el("button", { class: "chip", text: p.label, onclick: () => handlers.onLog(key, p.sec) }));
+    chips.append(el("button", { class: "chip", text: p.label, onclick: () => log(p.sec, p.label) }));
   }
   if (remain > 0) {
+    const remainLabel = "Kalan " + secToHuman(remain);
     chips.append(
       el("button", {
         class: "chip remain",
-        text: "Kalan " + secToHuman(remain),
+        text: remainLabel,
         title: "Günlük hedefe kalanı bu işe ekle",
-        onclick: () => handlers.onLog(key, remain),
+        onclick: () => log(remain, remainLabel),
       }),
     );
   }
@@ -199,6 +243,58 @@ function renderEntries(state: PopupState, handlers: RenderHandlers): void {
       ]),
     );
   }
+}
+
+// ---- Worklog onay penceresi (modal) ----
+// Sure cipine basilinca acilir: madde + secilen sure gosterilir, opsiyonel
+// aciklama alinir. "Kaydet" ile onaylanir, bos birakilabilir.
+type LogFn = (issueKey: string, seconds: number, comment?: string) => void;
+let modalWired = false;
+let onConfirm: ((comment: string) => void) | null = null;
+
+function closeLogDialog(): void {
+  $("logModal").classList.add("hidden");
+  onConfirm = null;
+}
+
+function wireLogDialog(): void {
+  if (modalWired) return;
+  modalWired = true;
+  const overlay = $("logModal");
+  const comment = $("lmComment") as HTMLTextAreaElement;
+
+  const save = (): void => {
+    const fn = onConfirm;
+    if (!fn) return;
+    const text = comment.value.trim();
+    closeLogDialog();
+    fn(text);
+  };
+
+  $("lmSave").addEventListener("click", save);
+  $("lmCancel").addEventListener("click", closeLogDialog);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) closeLogDialog(); });
+  comment.addEventListener("keydown", (e) => {
+    const ke = e as KeyboardEvent;
+    if (ke.key === "Enter" && (ke.metaKey || ke.ctrlKey)) { e.preventDefault(); save(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e as KeyboardEvent).key === "Escape" && !overlay.classList.contains("hidden")) closeLogDialog();
+  });
+}
+
+export function openLogDialog(
+  key: string, summary: string, seconds: number, durationLabel: string, onLog: LogFn,
+): void {
+  wireLogDialog();
+  $("lmKey").textContent = key;
+  $("lmDur").textContent = durationLabel;
+  $("lmSum").textContent = summary;
+  const comment = $("lmComment") as HTMLTextAreaElement;
+  comment.value = "";
+  onConfirm = (text) => onLog(key, seconds, text || undefined);
+  $("logModal").classList.remove("hidden");
+  comment.focus();
 }
 
 // ---- Toast & hata (DOM yardimcilari) ----

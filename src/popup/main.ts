@@ -37,11 +37,14 @@ async function main(): Promise<void> {
         .logTime(key, seconds, comment)
         .then((entry: WorklogEntry) => {
           toast(`${key} · kaydedildi`, "Geri al", () => void store.removeWorklog(entry).catch(onError));
+          refreshBadge();
         })
         .catch(onError);
     },
-    onDelete: (entry) => void store.removeWorklog(entry).catch(onError),
+    onDelete: (entry) =>
+      void store.removeWorklog(entry).then(refreshBadge).catch(onError),
     onToggleFav: (key) => void store.toggleFavorite(key).catch(onError),
+    onPickDate: (dateStr) => void store.goToDate(dateStr).catch(onError),
   };
 
   store.subscribe((state) => renderApp(state, handlers));
@@ -60,6 +63,11 @@ async function main(): Promise<void> {
 
 function onError(e: unknown): void {
   showError(errMsg(e));
+}
+
+/** Arka plandaki rozet denetimini tetikler (dinleyici yoksa sessizce gecilir). */
+function refreshBadge(): void {
+  void chrome.runtime.sendMessage({ type: "refreshBadge" }).catch(() => undefined);
 }
 
 function bindChrome(store: Store): void {
