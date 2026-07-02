@@ -56,6 +56,26 @@ export function jiraStarted(dateStr: string, secondsIntoDay: number): string {
   );
 }
 
+/** dateStr'in icinde bulundugu haftanin gunleri (Pazartesi..Pazar, YYYY-MM-DD). */
+export function weekDates(dateStr: string): string[] {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // haftanin pazartesisine sar
+  return Array.from({ length: 7 }, (_, i) => {
+    const x = new Date(d);
+    x.setDate(d.getDate() + i);
+    return todayStr(x);
+  });
+}
+
+/** Verilen gunden geriye en yakin is gununu dondurur (Cmt/Paz atlanir). */
+export function lastWorkday(from: Date = new Date()): string {
+  const d = new Date(from);
+  do {
+    d.setDate(d.getDate() - 1);
+  } while (d.getDay() === 0 || d.getDay() === 6);
+  return todayStr(d);
+}
+
 /** Tarih cubugu etiketi: "Bugün · 1 Temmuz Salı" gibi. */
 export function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + "T12:00:00");

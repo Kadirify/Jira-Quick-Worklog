@@ -8,6 +8,8 @@ import {
   jiraStarted,
   todayStr,
   hoursToSec,
+  weekDates,
+  lastWorkday,
 } from "../dist/lib/format.js";
 
 test("secToHuman", () => {
@@ -55,4 +57,26 @@ test("jiraStarted — saniye gun icine yayilir", () => {
 test("todayStr — YYYY-MM-DD bicimi", () => {
   assert.match(todayStr(new Date(2026, 6, 1)), /^2026-07-01$/);
   assert.match(todayStr(), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("weekDates — Pazartesi'den Pazar'a 7 gun", () => {
+  // 2026-07-01 Carsamba → hafta 2026-06-29 (Pzt) .. 2026-07-05 (Paz)
+  const days = weekDates("2026-07-01");
+  assert.equal(days.length, 7);
+  assert.equal(days[0], "2026-06-29");
+  assert.equal(days[6], "2026-07-05");
+});
+
+test("weekDates — Pazartesi kendisi ilk gun", () => {
+  assert.equal(weekDates("2026-06-29")[0], "2026-06-29");
+});
+
+test("lastWorkday — hafta ici bir onceki gun", () => {
+  // 2026-07-01 Carsamba → Sali 2026-06-30
+  assert.equal(lastWorkday(new Date(2026, 6, 1, 12)), "2026-06-30");
+});
+
+test("lastWorkday — Pazartesi'den Cuma'ya atlar", () => {
+  // 2026-06-29 Pazartesi → Cuma 2026-06-26
+  assert.equal(lastWorkday(new Date(2026, 5, 29, 12)), "2026-06-26");
 });

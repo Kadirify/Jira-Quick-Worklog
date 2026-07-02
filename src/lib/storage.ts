@@ -15,6 +15,7 @@ export const DEFAULT_CONFIG: Config = {
   dailyTargetHours: 8,
   startHour: 9,
   jql: DEFAULT_JQL,
+  askComment: true,
 };
 
 function uid(): string {
@@ -41,6 +42,7 @@ export async function loadConfig(): Promise<Config> {
       dailyTargetHours: old.dailyTargetHours ?? 8,
       startHour: old.startHour ?? 9,
       jql: old.jql ?? DEFAULT_JQL,
+      askComment: true,
     };
     await saveConfig(cfg);
     return cfg;
@@ -67,6 +69,7 @@ export function resolveSettings(config: Config): Settings {
     dailyTargetHours: config.dailyTargetHours,
     startHour: config.startHour,
     jql: config.jql,
+    askComment: config.askComment,
   };
 }
 

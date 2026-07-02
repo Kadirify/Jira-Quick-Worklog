@@ -170,6 +170,38 @@ export class JiraClient {
     return out;
   }
 
+  /** Tarih araligindaki (uclar dahil), bana ait gunluk toplamlar: { "YYYY-MM-DD": saniye }. */
+  async worklogTotalsForRange(startStr: string, endStr: string): Promise<Record<string, number>> {
+    const issues = await this.search(
+      `worklogAuthor = currentUser() AND worklogDate >= "${escapeJql(startStr)}" AND worklogDate <= "${escapeJql(endStr)}"`,
+      50,
+    );
+    const myId = this.me?.accountId;
+    const totals: Record<string, number> = {};
+    for (const issue of issues) {
+      const data = await this.request<WorklogListResponse>(
+        "GET",
+        `/rest/api/3/issue/${encodeURIComponent(issue.key)}/worklog?maxResults=200`,
+      );
+      for (const w of data.worklogs ?? []) {
+        if (w.author?.accountId !== myId) continue;
+        const day = String(w.started).slice(0, 10);
+        if (day < startStr || day > endStr) continue;
+        totals[day] = (totals[day] ?? 0) + (w.timeSpentSeconds ?? 0);
+      }
+    }
+    return totals;
+  }
+
+  /** Son gunlerde worklog girdigim isler — "en cok kullandiklarin" kisayolu. */
+  async recentWorklogIssues(days = 7, max = 10): Promise<JiraIssue[]> {
+    const d = Math.max(1, Math.floor(days));
+    return this.search(
+      `worklogAuthor = currentUser() AND worklogDate >= -${d}d ORDER BY updated DESC`,
+      max,
+    );
+  }
+
   async addWorklog(issueKey: string, input: AddWorklogInput): Promise<CreatedWorklog> {
     const body: Record<string, unknown> = {
       timeSpentSeconds: input.seconds,

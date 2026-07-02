@@ -16,6 +16,8 @@ export interface Config {
   dailyTargetHours: number;
   startHour: number;
   jql: string;
+  /** Sure cipine basinca aciklama penceresi sorulsun mu? */
+  askComment: boolean;
 }
 
 /** JiraClient'in kullandigi, aktif hesaptan cozumlenmis ayar. */
@@ -26,6 +28,7 @@ export interface Settings {
   dailyTargetHours: number;
   startHour: number;
   jql: string;
+  askComment: boolean;
 }
 
 export interface JiraUser {
