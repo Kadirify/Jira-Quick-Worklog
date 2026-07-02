@@ -48,6 +48,7 @@ async function persist(): Promise<void> {
   config.startHour = Number($<HTMLInputElement>("startHour").value) || 9;
   config.jql = $<HTMLInputElement>("jql").value.trim() ||
     "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC";
+  config.askComment = $<HTMLInputElement>("askComment").checked;
   await saveConfig(config);
 }
 
@@ -59,6 +60,7 @@ function settingsFor(acc: Account): Settings {
     dailyTargetHours: 8,
     startHour: 9,
     jql: "",
+    askComment: true,
   };
 }
 
@@ -154,6 +156,7 @@ function fillGlobals(): void {
   $<HTMLInputElement>("dailyTargetHours").value = String(config.dailyTargetHours);
   $<HTMLInputElement>("startHour").value = String(config.startHour);
   $<HTMLInputElement>("jql").value = config.jql;
+  $<HTMLInputElement>("askComment").checked = config.askComment;
 }
 
 // ---- Olaylar ----
