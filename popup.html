@@ -32,7 +32,19 @@
       <!-- Tarih + ilerleme -->
       <div class="daybar">
         <button id="prevDay" class="icon-btn" title="Önceki gün">‹</button>
-        <button id="dateLabel" class="date-label" title="Bugüne dön"></button>
+        <div class="date-picker">
+          <button id="dateLabel" class="date-label" title="Tarih seç"></button>
+          <div id="calendar" class="calendar hidden">
+            <div class="cal-head">
+              <button id="calPrevMonth" class="icon-btn" type="button" title="Önceki ay">‹</button>
+              <span id="calMonthLabel" class="cal-month"></span>
+              <button id="calNextMonth" class="icon-btn" type="button" title="Sonraki ay">›</button>
+            </div>
+            <div id="calWeekdays" class="cal-weekdays"></div>
+            <div id="calGrid" class="cal-grid"></div>
+            <button id="calToday" class="cal-today" type="button">Bugüne git</button>
+          </div>
+        </div>
         <button id="nextDay" class="icon-btn" title="Sonraki gün">›</button>
       </div>
 

@@ -85,6 +85,7 @@ body {
 
 /* ---- Tarih cubugu ---- */
 .daybar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 14px 8px; }
+.date-picker { position: relative; }
 .date-label {
   border: none; background: transparent; color: var(--text);
   font-weight: 600; font-size: 14px; cursor: pointer; padding: 6px 12px; border-radius: 8px;
@@ -92,6 +93,39 @@ body {
 }
 .date-label:hover { background: var(--panel); }
 .daybar .icon-btn { font-size: 20px; }
+
+/* ---- Takvim (ay gorunumu) ---- */
+.calendar {
+  position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  z-index: 40; width: 240px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow); padding: 10px;
+  animation: pop 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cal-head .icon-btn { width: 26px; height: 26px; font-size: 16px; }
+.cal-month { font-weight: 700; font-size: 13px; text-transform: capitalize; }
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  font-size: 10px; font-weight: 700; color: var(--muted); text-align: center; margin-bottom: 2px;
+}
+.cal-weekdays span { padding: 4px 0; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-day {
+  border: none; background: transparent; color: var(--text); font-family: inherit;
+  font-size: 12px; padding: 6px 0; border-radius: 8px; cursor: pointer;
+}
+.cal-day:hover { background: var(--panel); }
+.cal-day.other { visibility: hidden; cursor: default; }
+.cal-day.today { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.cal-day.sel { background: var(--primary); color: #fff; }
+.cal-day.sel:hover { background: var(--primary-press); }
+.cal-today {
+  width: 100%; margin-top: 8px; border: 1px solid var(--border-strong); background: transparent;
+  color: var(--text); font-family: inherit; font-weight: 600; font-size: 12px;
+  padding: 7px 0; border-radius: 8px; cursor: pointer;
+}
+.cal-today:hover { background: var(--panel); }
 
 /* ---- Ilerleme ---- */
 .progress-wrap { padding: 0 16px 12px; }

@@ -48,12 +48,14 @@ const $ = (id: string): HTMLElement => {
 
 // ---- Ana render ----
 export function renderApp(state: PopupState, handlers: RenderHandlers): void {
+  wireCalendar(handlers);
   renderAccounts(state);
   $("dateLabel").textContent = formatDateLabel(state.date);
   renderProgress(state);
   renderWeek(state, handlers);
   renderIssues(state, handlers);
   renderEntries(state, handlers);
+  refreshCalendar(state);
 }
 
 const DAY_NAMES = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"] as const;
@@ -243,6 +245,109 @@ function renderEntries(state: PopupState, handlers: RenderHandlers): void {
       ]),
     );
   }
+}
+
+// ---- Takvim (ay secici) ----
+// Tarih etiketine tiklaninca acilir: secilen ayin gunlerini gosterir, herhangi
+// bir gune tiklayinca o gune gidilir. Gorulen ay, secili gunden bagimsiz olarak
+// yerel modul durumunda tutulur (store'u ilgilendirmez).
+let calWired = false;
+let calOpen = false;
+let calViewYear = 0;
+let calViewMonth = 0; // 0-11
+let calState: PopupState | null = null;
+let calHandlers: RenderHandlers | null = null;
+
+function closeCalendar(): void {
+  calOpen = false;
+  $("calendar").classList.add("hidden");
+}
+
+function openCalendar(state: PopupState): void {
+  const d = new Date(state.date + "T12:00:00");
+  calViewYear = d.getFullYear();
+  calViewMonth = d.getMonth();
+  calOpen = true;
+  $("calendar").classList.remove("hidden");
+  renderCalendarGrid(state);
+}
+
+function wireCalendar(handlers: RenderHandlers): void {
+  calHandlers = handlers;
+  if (calWired) return;
+  calWired = true;
+
+  const weekdays = $("calWeekdays");
+  for (const n of DAY_NAMES) weekdays.append(el("span", { text: n }));
+
+  $("dateLabel").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!calState) return;
+    if (calOpen) closeCalendar();
+    else openCalendar(calState);
+  });
+  $("calPrevMonth").addEventListener("click", (e) => {
+    e.stopPropagation();
+    calViewMonth -= 1;
+    if (calViewMonth < 0) { calViewMonth = 11; calViewYear -= 1; }
+    if (calState) renderCalendarGrid(calState);
+  });
+  $("calNextMonth").addEventListener("click", (e) => {
+    e.stopPropagation();
+    calViewMonth += 1;
+    if (calViewMonth > 11) { calViewMonth = 0; calViewYear += 1; }
+    if (calState) renderCalendarGrid(calState);
+  });
+  $("calToday").addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeCalendar();
+    calHandlers?.onPickDate(todayStr());
+  });
+  document.addEventListener("click", (e) => {
+    if (!calOpen) return;
+    const cal = $("calendar");
+    if (cal.contains(e.target as Node)) return;
+    closeCalendar();
+  });
+}
+
+function renderCalendarGrid(state: PopupState): void {
+  $("calMonthLabel").textContent = new Date(calViewYear, calViewMonth, 1).toLocaleDateString(
+    "tr-TR",
+    { month: "long", year: "numeric" },
+  );
+
+  const grid = $("calGrid");
+  grid.innerHTML = "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  const firstDay = new Date(calViewYear, calViewMonth, 1);
+  const leading = (firstDay.getDay() + 6) % 7; // haftanin pazartesisine gore kaydirma
+  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  const today = todayStr();
+
+  for (let i = 0; i < leading; i++) {
+    grid.append(el("button", { class: "cal-day other", disabled: "true" }));
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${calViewYear}-${p(calViewMonth + 1)}-${p(day)}`;
+    const cls =
+      "cal-day" + (dateStr === today ? " today" : "") + (dateStr === state.date ? " sel" : "");
+    grid.append(
+      el("button", {
+        class: cls,
+        text: String(day),
+        onclick: () => {
+          closeCalendar();
+          calHandlers?.onPickDate(dateStr);
+        },
+      }),
+    );
+  }
+}
+
+function refreshCalendar(state: PopupState): void {
+  calState = state;
+  if (calOpen) renderCalendarGrid(state);
 }
 
 // ---- Worklog onay penceresi (modal) ----
