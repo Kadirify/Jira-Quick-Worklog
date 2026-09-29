@@ -89,7 +89,6 @@ function bindChrome(store: Store): void {
 
   $("prevDay").addEventListener("click", () => void withReload(() => store.changeDay(-1)));
   $("nextDay").addEventListener("click", () => void withReload(() => store.changeDay(1)));
-  $("dateLabel").addEventListener("click", () => void withReload(() => store.goToDate(todayStr())));
 
   const search = $("search") as HTMLInputElement;
   search.addEventListener("keydown", (e) => {
